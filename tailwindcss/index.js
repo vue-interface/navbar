@@ -356,7 +356,7 @@ module.exports = plugin(function({ addComponents, theme }) {
                         }
                     }
                 }
-            }
+            };
         }
     }
 });
