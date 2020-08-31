@@ -6,7 +6,7 @@
 
 <script>
 import Variant from '@vue-interface/variant';
-import { isBoolean } from '@vue-interface/utils';
+import { isBoolean, prefix } from '@vue-interface/utils';
 
 export default {
 
@@ -18,6 +18,8 @@ export default {
 
     props: {
 
+        dark: Boolean,
+
         /**
          * Expand the navbar. If true, applies to all size, otherwise pass a string.
          *
@@ -27,7 +29,15 @@ export default {
             type: [Boolean, String],
             default: 'lg',
             validate(value) {
-                ['xs', 'sm', 'md', 'lg', 'xl'].indexOf(value) !== -1 || isBoolean(value);
+                const prefixed = prefix(value, 'navbar-expand');
+                
+                return [
+                    'navbar-expand-xs',
+                    'navbar-expand-sm',
+                    'navbar-expand-md',
+                    'navbar-expand-lg',
+                    'navbar-expand-xl'
+                ].indexOf(prefixed) !== -1 || isBoolean(value);
             }
         },
 
@@ -42,6 +52,8 @@ export default {
                 ['top', 'bottom'].indexOf(value) !== -1 || isBoolean(value);
             }
         },
+
+        light: Boolean,
 
         /**
          * The should the navbar be stickied at the top.
@@ -62,9 +74,11 @@ export default {
          */
         variant: {
             type: String,
-            default: 'light',
             validate(value) {
-                return ['light', 'dark'].indexOf(value) !== -1;
+                return [
+                    'navbar-light',
+                    'navbar-dark'
+                ].indexOf(prefix(value, 'navbar')) !== -1;
             }
         }
 
@@ -81,7 +95,7 @@ export default {
                 return this.expand;
             }
 
-            return prefix(prefix(this.expand, 'expand'), 'navbar');
+            return prefix(this.expand, 'navbar-expand');
         },
 
         classes() {
@@ -92,8 +106,10 @@ export default {
                 'sticky-top': this.sticky === 'top' || this.sticky === true,
                 'sticky-bottom': this.sticky === 'bottom',
                 [this.expandedClass]: !!this.expandedClass,
-                [this.variantClass]: !!this.variantClass
-            }
+                [this.variantClass]: !!this.variantClass,
+                'navbar-light': this.light && !this.dark,
+                'navbar-dark': this.dark && !this.light,
+            };
         }
     }
 

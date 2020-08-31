@@ -6,53 +6,63 @@
         <title>Nav</title>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap-reboot.min.css">
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap-grid.min.css">
-        <link rel="stylesheet" href="./dist/Nav.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vue-interface/btn-dropdown@0.9.9/dist/BtnDropdown.css">
+        <link rel="stylesheet" href="./dist/Navbar.css">
     </head>
     <body>
         <div id="app" class="container">
-            <h1 class="mb-5">navigation</h1>
+            <h1 class="mb-5">navbar</h1>
 
-            <navigation class="mb-5">
-                <a active href="#">Active</a>
-                <a href="#">Link</a>
-                <a href="#">Link</a>
-                <a href="#" disabled>Disabled</a>
-            </navigation>
+            <h2>Brand</h2>
+            
+            <navbar light>
+                <navbar-brand href="/">Bootstrap</navbar-brand>
+            </navbar>
+            
+            <navbar light>
+                <navbar-brand to="/">
+                    <img src="https://v5.getbootstrap.com/docs/5.0/assets/brand/bootstrap-solid.svg" width="30" height="30" class="d-inline-block align-top" alt="" loading="lazy">
+                    Bootstrap
+                </navbar-brand>
+            </navbar>
 
-            <navigation pills class="mb-5">
-                <li class="test">
-                    <a aria-current="page" active href="#">Active</a>
-                </li>
-                <a href="#">Link</a>
-                <a href="#">Link</a>
-                <a href="#" disabled>Disabled</a>
-            </navigation>
+            <h2>Nav</h2>
 
-            <navigation pills fill class="mb-5">
-                <li class="test">
-                    <a aria-current="page" active href="#">Active</a>
-                </li>
-                <a href="#">Link</a>
-                <a href="#">Link</a>
-                <a href="#" disabled>Disabled</a>
-            </navigation>
-
-            <navigation pills justified class="mb-5">
-                <li class="test">
-                    <a aria-current="page" active href="#">Active</a>
-                </li>
-                <a href="#">Link</a>
-                <a href="#">Link</a>
-                <a href="#" disabled>Disabled</a>
-            </navigation>
-
-            <!-- need example of dropdown button inside tab/pill navs -->
+            <navbar dark style="background: black;">
+                <div class="container-fluid">
+                    <navbar-brand href="/">Bootstrap</navbar-brand>
+                    <navbar-collapse>
+                        <navbar-nav>
+                            <a href="#">Home</a>
+                            <a href="#">Features</a>
+                            <a href="#">Pricing</a>
+                            <a href="#" disabled>Disabled</a>
+                            <btn-dropdown label="Dropdown Link" split>
+                                <a href="#">Item 1</a>
+                                <a href="#">Item 2</a>
+                                <hr>
+                                <a href="#">Item 3</a>
+                            </btn-dropdown>
+                        </navbar-nav>
+                    </navbar-collapse>
+                </div>
+            </navbar>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/vue@2.6/dist/vue.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/vue-router/dist/vue-router.js"></script>
-        <script type="text/javascript" src="./dist/Navigation.umd.js"></script>
+        <!-- <script src="https://cdn.jsdelivr.net/npm/@vue-interface/btn-dropdown@0.9.9/dist/BtnDropdown.umd.min.js"></script> -->
+        <script type="text/javascript" src="./dist/Navbar.umd.js"></script>
         <script type="text/javascript">
+            const {
+                BtnDropdown,
+                Navbar,
+                NavbarBrand,
+                NavbarCollapse,
+                NavbarNav,
+                NavbarToggler
+            } = window.Navbar;
+
             Vue.use(VueRouter);
 
             const router = new VueRouter({
@@ -64,9 +74,14 @@
 
             const vue = new Vue({
                 router,
-                el: '#app',
+                el: '#app',            
                 components: {
-                    Navigation
+                    BtnDropdown,
+                    Navbar,
+                    NavbarBrand,
+                    NavbarCollapse,
+                    NavbarNav,
+                    NavbarToggler
                 }
             });
         </script>

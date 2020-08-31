@@ -5,14 +5,15 @@ import NavbarCollapse from './src/NavbarCollapse';
 import NavbarNav from './src/NavbarNav';
 import NavbarText from './src/NavbarText';
 import NavbarToggler from './src/NavbarToggler';
-import NavbarTogglerIcon from './src/NavbarTogglerIcon';
+
+import BtnDropdown from '@vue-interface/btn-dropdown';
 
 export {
+    BtnDropdown,
     Navbar,
     NavbarBrand,
     NavbarCollapse,
     NavbarNav,
     NavbarText,
-    NavbarToggler,
-    NavbarTogglerIcon
+    NavbarToggler
 };

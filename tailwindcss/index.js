@@ -4,7 +4,7 @@ const { breakpoints, divide, escapeSvg, flatten, multiply, rgba, subtract } = re
 
 module.exports = plugin(function({ addComponents, theme }) {
     const navbar = {
-        ':root': flatten(theme('navbar')),
+        ':root': flatten(theme('navbar'), '--navbar-'),
 
         // Navbar
         //
@@ -62,7 +62,7 @@ module.exports = plugin(function({ addComponents, theme }) {
             display: 'flex',
             flexDirection: 'column', // cannot use `inherit` to get the `.navbar`s value
             paddingLeft: 0,
-            marginButton: 0,
+            marginBottom: 0,
             listStyle: 'none',
         },
         
@@ -143,14 +143,14 @@ module.exports = plugin(function({ addComponents, theme }) {
             }
 
             const [ key, next ] = breaks.next(name);
-            const selector = breaks.infix('.navbar-expand', next);
+            const selector = breaks.infix('.navbar-expand', key);
 
             Object.assign(navbar, {
-                [selector]: {
-                    flexWrap: 'nowrap',
-                    justifyContent: 'flex-start'
-                },
                 [`@media (min-width: ${next.min()})`]: {
+                    [selector]: {
+                        flexWrap: 'nowrap',
+                        justifyContent: 'flex-start'
+                    },
                     [`${selector} .navbar-nav`]: {
                         flexDirection: 'row',
                     },
@@ -202,20 +202,20 @@ module.exports = plugin(function({ addComponents, theme }) {
             color: theme('navbar.light.active.color')
         },
         
-        '.navbar-toggler': {
+        '.navbar-light .navbar-toggler': {
             color: theme('navbar.light.color'),
             borderColor: theme('navbar.light-toggler-border-color')
         },
         
-        '.navbar-toggler .navbar-toggler-icon': {
+        '.navbar-light .navbar-toggler .navbar-toggler-icon': {
             backgroundImage: escapeSvg(theme('navbar.light.toggler.icon.backgroundImage'))
         },
         
-        '.navbar-toggler .navbar-text': {
+        '.navbar-light .navbar-toggler .navbar-text': {
             color: theme('navbar.light.color')
         },
         
-        '.navbar-toggler .navbar-text a, .navbar-toggler .navbar-text a:hover, .navbar-toggler .navbar-text a:focus': {
+        '.navbar-light .navbar-toggler .navbar-text a, .navbar-toggler .navbar-text a:hover, .navbar-toggler .navbar-text a:focus': {
             color: theme('navbar.light.active.color')
         },
         
@@ -284,10 +284,10 @@ module.exports = plugin(function({ addComponents, theme }) {
                     paddingY: '.25rem',
                     paddingX: '.75rem',
                     fontSize: theme('interface.fontSize.lg', '1.25em'),
-                    borderRadius: theme('btn.borderRadius', theme('interface.borderRadius.base', '.25rem')),
+                    borderRadius: theme('interface.borderRadius.base', '.25rem'),
                     transition: 'box-shadow .15s ease-in-out',
                     focus: {
-                        width: theme('btn.focus.width', '.25rem')
+                        width: theme('interface.focus.width', '.25rem')
                     }
                 },
                 container: {
@@ -322,7 +322,7 @@ module.exports = plugin(function({ addComponents, theme }) {
                     toggler: {
                         borderColor: rgba(theme('colors.white', colors.white), .1),
                         icon: {
-                            backgroundImage: escapeSvg(`url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='#{$navbar-dark-color}' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg>")`)
+                            backgroundImage: escapeSvg(`url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='${rgba(theme('colors.white', colors.white), .55)}' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg>")`)
                         }
                     },
                     brand: {

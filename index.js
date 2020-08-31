@@ -4,7 +4,6 @@ import NavbarCollapse from './src/NavbarCollapse';
 import NavbarNav from './src/NavbarNav';
 import NavbarText from './src/NavbarText';
 import NavbarToggler from './src/NavbarToggler';
-import NavbarTogglerIcon from './src/NavbarTogglerIcon';
 
 export {
     Navbar,
@@ -13,5 +12,4 @@ export {
     NavbarNav,
     NavbarText,
     NavbarToggler,
-    NavbarTogglerIcon
 };

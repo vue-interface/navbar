@@ -1,13 +1,21 @@
 <template>
-    <ul class="navbar-nav" role="nav">
-        <slot />
-    </ul>
+    <ol class="navbar-nav">
+        <navigation-items>
+            <slot />
+        </navigation-items>
+    </ol>
 </template>
 
 <script>
+import NavigationItems from '@vue-interface/navigation/src/NavigationItems';
+
 export default {
 
-    name: 'NavbarNav'
+    name: 'NavbarNav',
+
+    components: {
+        NavigationItems
+    }
 
 };
 </script>

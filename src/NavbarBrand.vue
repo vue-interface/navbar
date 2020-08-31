@@ -1,30 +1,7 @@
-<template>
-    <component :is="component" class="navbar-brand" :class="{'h1': h1}" :to="to" :href="href || '#'">
-        <img
-            v-if="src"
-            class="d-inline-block align-center"
-            :src="src"
-            :width="unit(width)"
-            :height="unit(height)"
-            :alt="alt">
-        <slot />
-    </component>
-</template>
-
 <script>
-import { unit } from '@vue-interface/utils';
-
 export default {
 
     props: {
-
-        /**
-         * The img `alt` attribute. `src` must be define before this prop has
-         * any affect.
-         *
-         * @property Object
-         */
-        alt: String,
 
         /**
          * The HTML wrapping tag.
@@ -32,22 +9,6 @@ export default {
          * @property Object
          */
         tag: String,
-
-        /**
-         * The img `width` attribute. `src` must be define before this prop has
-         * any affect.
-         *
-         * @property Object
-         */
-        width: [Number, String],
-
-        /**
-         * The img `height` attribute. `src` must be define before this prop has
-         * any affect.
-         *
-         * @property Object
-         */
-        height: [Number, String],
 
         /**
          * The `to` attribute that is passed to the component.
@@ -61,37 +22,25 @@ export default {
          *
          * @property Object
          */
-        href: String,
-
-        /**
-         * Append the `h1` class to increase the display size
-         *
-         * @property Object
-         */
-        h1: Boolean,
-
-        /**
-         * If a `src` attribute is passed, then use it to add an img tag
-         *
-         * @property Object
-         */
-        src: String
+        href: String
 
     },
 
-    computed: {
-
-        component() {
-            return this.tag || (this.to ? 'router-link' : (this.href ? 'a' : 'span'));
+    render(h) {
+        if(this.$props.to) {
+            return h('router-link', {
+                staticClass: 'navbar-brand',
+                props: this.$props,
+                attrs: this.$attrs
+            }, this.$slots.default);
         }
-
-    },
-
-    methods: {
-        unit(value) {
-            return unit(value);
-        }
+        
+        return h(this.$props.href ? 'a' : (this.tag || 'span'), {
+            staticClass: 'navbar-brand',
+            attrs: Object.assign({
+                href: this.$props.href
+            }, this.$attrs)
+        }, this.$slots.default);
     }
-
 };
 </script>

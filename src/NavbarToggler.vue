@@ -1,33 +1,33 @@
 <template>
-    <button
-        type="button"
+    <a
+        v-collapse="target"
+        href="#"
         class="navbar-toggler"
         data-toggle="collapse"
         :data-target="target"
         :aria-controls="target"
-        :aria-expanded="expanded"
-        :aria-label="label"
+        :aria-label="ariaLabel"
         @click="onClick">
-        <slot><navbar-toggler-icon /></slot>
-    </button>
+        <slot>
+            <span class="navbar-toggler-icon" />
+        </slot>
+    </a>
 </template>
 
 <script>
-import NavbarTogglerIcon from './NavbarTogglerIcon';
+import Collapse from '@vue-interface/collapse';
 
 export default {
 
     name: 'NavbarToggler',
 
-    components: {
-        NavbarTogglerIcon
+    directives: {
+        Collapse
     },
 
     props: {
 
-        expanded: Boolean,
-
-        label: {
+        ariaLabel: {
             type: String,
             default: 'Toggle navigation'
         },

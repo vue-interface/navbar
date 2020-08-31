@@ -7,7 +7,6 @@ module.exports = {
     },
     plugins: [
         require('@vue-interface/tailwindcss'),
-        require('@vue-interface/btn/tailwindcss'),
         require('@vue-interface/navigation/tailwindcss'),
         require('./tailwindcss')
     ]
