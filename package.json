@@ -1,6 +1,6 @@
 {
   "name": "@vue-interface/navbar",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Vue navbar component.",
   "main": "index.js",
   "scripts": {
