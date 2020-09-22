@@ -37,16 +37,16 @@
   },
   "homepage": "https://github.com/vue-interface/navbar/docs#readme",
   "dependencies": {
+    "@vue-interface/btn": "^0.9.8",
     "@vue-interface/btn-dropdown": "^0.9.13",
     "@vue-interface/collapse": "^0.9.0",
+    "@vue-interface/navigation": "^0.9.14",
     "@vue-interface/utils": "^0.9.16",
     "@vue-interface/variant": "^1.0.12",
     "core-js": "^3.6.4",
     "vue": "^2.6.11"
   },
   "devDependencies": {
-    "@vue-interface/btn": "^0.9.8",
-    "@vue-interface/navigation": "^0.9.14",
     "@vue-interface/tailwindcss": "^0.2.5",
     "@vue/cli-plugin-babel": "^4.0",
     "@vue/cli-plugin-eslint": "^4.0",
