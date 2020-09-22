@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@vue-interface/btn": "^0.9.8",
-    "@vue-interface/navigation": "^0.9.12",
+    "@vue-interface/navigation": "^0.9.14",
     "@vue-interface/tailwindcss": "^0.2.5",
     "@vue/cli-plugin-babel": "^4.0",
     "@vue/cli-plugin-eslint": "^4.0",
