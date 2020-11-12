@@ -5,8 +5,8 @@
 </template>
 
 <script>
-import Variant from '@vue-interface/variant';
 import { isBoolean, prefix } from '@vue-interface/utils';
+import Variant from '@vue-interface/variant';
 
 export default {
 
