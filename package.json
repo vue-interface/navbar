@@ -1,6 +1,6 @@
 {
   "name": "@vue-interface/navbar",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "description": "Vue navbar component.",
   "main": "index.js",
   "unpkg": "dist/Navbar.umd.min.js",
