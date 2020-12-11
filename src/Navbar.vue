@@ -5,8 +5,8 @@
 </template>
 
 <script>
-import Variant from '@vue-interface/variant';
 import { isBoolean, prefix } from '@vue-interface/utils';
+import Variant from '@vue-interface/variant';
 
 export default {
 
@@ -17,8 +17,6 @@ export default {
     ],
 
     props: {
-
-        dark: Boolean,
 
         /**
          * Expand the navbar. If true, applies to all size, otherwise pass a string.
@@ -53,8 +51,6 @@ export default {
             }
         },
 
-        light: Boolean,
-
         /**
          * The should the navbar be stickied at the top.
          *
@@ -74,6 +70,7 @@ export default {
          */
         variant: {
             type: String,
+            default: 'navbar-light',
             validate(value) {
                 return [
                     'navbar-light',
@@ -104,11 +101,8 @@ export default {
                 'fixed-top': this.fixed === 'top' || this.fixed === true,
                 'fixed-bottom': this.fixed === 'bottom',
                 'sticky-top': this.sticky === 'top' || this.sticky === true,
-                'sticky-bottom': this.sticky === 'bottom',
                 [this.expandedClass]: !!this.expandedClass,
                 [this.variantClass]: !!this.variantClass,
-                'navbar-light': this.light && !this.dark,
-                'navbar-dark': this.dark && !this.light,
             };
         }
     }

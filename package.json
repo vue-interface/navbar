@@ -5,8 +5,9 @@
   "main": "index.js",
   "unpkg": "dist/Navbar.umd.min.js",
   "scripts": {
-    "watch": "npm run serve",
-    "serve": "vue-cli-service build --target lib --name=Navbar ./main.js --watch",
+    "serve": "vue-cli-service serve ./src/main.js --watch",
+    "watch": "npm run dev",
+    "dev": "vue-cli-service build --target lib --name=Navbar ./main.js --watch",
     "build": "vue-cli-service build --target lib --name=Navbar ./main.js",
     "lint": "vue-cli-service lint",
     "fix": "vue-cli-service lint --fix",
@@ -42,7 +43,7 @@
     "@vue-interface/collapse": "^0.9.0",
     "@vue-interface/navigation": "^0.9.14",
     "@vue-interface/utils": "^0.9.16",
-    "@vue-interface/variant": "^1.0.12",
+    "@vue-interface/variant": "^1.0.15",
     "core-js": "^3.6.4",
     "vue": "^2.6.11"
   },
