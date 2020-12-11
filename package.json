@@ -3,6 +3,7 @@
   "version": "0.9.6",
   "description": "Vue navbar component.",
   "main": "index.js",
+  "unpkg": "dist/Navbar.umd.min.js",
   "scripts": {
     "watch": "npm run serve",
     "serve": "vue-cli-service build --target lib --name=Navbar ./main.js --watch",
@@ -23,8 +24,7 @@
     "url": "git+https://github.com/vue-interface/navbar.git"
   },
   "keywords": [
-    "List",
-    "Group",
+    "Navbar",
     "Vue",
     "Component",
     "Tailwind",
@@ -49,15 +49,13 @@
   "devDependencies": {
     "@vue-interface/tailwindcss": "^0.2.5",
     "@vue/cli-plugin-babel": "^4.0",
-    "@vue/cli-plugin-eslint": "^4.0",
     "@vue/cli-service": "^4.0",
     "@vuepress/plugin-register-components": "^1.5.0",
     "babel-eslint": "^10.1.0",
-    "eslint": "^6.7.2",
-    "eslint-plugin-vue": "^6.2.2",
+    "eslint": "^7.15.0",
+    "eslint-plugin-vue": "^7.2.0",
     "hex-to-rgba": "^2.0.1",
     "markdown-it-meta": "0.0.1",
-    "postcss-cli": "^7.1.1",
     "tailwindcss": "^1.6.0",
     "vue-template-compiler": "^2.6.11",
     "vuepress": "^1.5.0",

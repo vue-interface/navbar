@@ -804,7 +804,7 @@ var store = __webpack_require__("c6cd");
 (module.exports = function (key, value) {
   return store[key] || (store[key] = value !== undefined ? value : {});
 })('versions', []).push({
-  version: '3.6.5',
+  version: '3.8.1',
   mode: IS_PURE ? 'pure' : 'global',
   copyright: '© 2020 Denis Pushkarev (zloirock.ru)'
 });
@@ -894,19 +894,6 @@ module.exports = function (bitmap, value) {
   };
 };
 
-
-/***/ }),
-
-/***/ "5ea3":
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-/* WEBPACK VAR INJECTION */(function(global) {/** Detect free variable `global` from Node.js. */
-var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
-
-/* harmony default export */ __webpack_exports__["a"] = (freeGlobal);
-
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__("c8ba")))
 
 /***/ }),
 
@@ -1039,6 +1026,7 @@ var global = __webpack_require__("da84");
 var isObject = __webpack_require__("861d");
 var createNonEnumerableProperty = __webpack_require__("9112");
 var objectHas = __webpack_require__("5135");
+var shared = __webpack_require__("c6cd");
 var sharedKey = __webpack_require__("f772");
 var hiddenKeys = __webpack_require__("d012");
 
@@ -1059,11 +1047,12 @@ var getterFor = function (TYPE) {
 };
 
 if (NATIVE_WEAK_MAP) {
-  var store = new WeakMap();
+  var store = shared.state || (shared.state = new WeakMap());
   var wmget = store.get;
   var wmhas = store.has;
   var wmset = store.set;
   set = function (it, metadata) {
+    metadata.facade = it;
     wmset.call(store, it, metadata);
     return metadata;
   };
@@ -1077,6 +1066,7 @@ if (NATIVE_WEAK_MAP) {
   var STATE = sharedKey('state');
   hiddenKeys[STATE] = true;
   set = function (it, metadata) {
+    metadata.facade = it;
     createNonEnumerableProperty(it, STATE, metadata);
     return metadata;
   };
@@ -1117,9 +1107,15 @@ var TEMPLATE = String(String).split('String');
   var unsafe = options ? !!options.unsafe : false;
   var simple = options ? !!options.enumerable : false;
   var noTargetGet = options ? !!options.noTargetGet : false;
+  var state;
   if (typeof value == 'function') {
-    if (typeof key == 'string' && !has(value, 'name')) createNonEnumerableProperty(value, 'name', key);
-    enforceInternalState(value).source = TEMPLATE.join(typeof key == 'string' ? key : '');
+    if (typeof key == 'string' && !has(value, 'name')) {
+      createNonEnumerableProperty(value, 'name', key);
+    }
+    state = enforceInternalState(value);
+    if (!state.source) {
+      state.source = TEMPLATE.join(typeof key == 'string' ? key : '');
+    }
   }
   if (O === global) {
     if (simple) O[key] = value;
@@ -1562,7 +1558,7 @@ module.exports = isForced;
 /* harmony import */ var _mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_DropdownMenu_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__("3296");
 /* harmony import */ var _mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_DropdownMenu_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_DropdownMenu_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__);
 /* unused harmony reexport * */
- /* unused harmony default export */ var _unused_webpack_default_export = (_mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_DropdownMenu_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default.a); 
+
 
 /***/ }),
 
@@ -1886,13 +1882,14 @@ var arraySpeciesCreate = __webpack_require__("65f0");
 
 var push = [].push;
 
-// `Array.prototype.{ forEach, map, filter, some, every, find, findIndex }` methods implementation
+// `Array.prototype.{ forEach, map, filter, some, every, find, findIndex, filterOut }` methods implementation
 var createMethod = function (TYPE) {
   var IS_MAP = TYPE == 1;
   var IS_FILTER = TYPE == 2;
   var IS_SOME = TYPE == 3;
   var IS_EVERY = TYPE == 4;
   var IS_FIND_INDEX = TYPE == 6;
+  var IS_FILTER_OUT = TYPE == 7;
   var NO_HOLES = TYPE == 5 || IS_FIND_INDEX;
   return function ($this, callbackfn, that, specificCreate) {
     var O = toObject($this);
@@ -1901,7 +1898,7 @@ var createMethod = function (TYPE) {
     var length = toLength(self.length);
     var index = 0;
     var create = specificCreate || arraySpeciesCreate;
-    var target = IS_MAP ? create($this, length) : IS_FILTER ? create($this, 0) : undefined;
+    var target = IS_MAP ? create($this, length) : IS_FILTER || IS_FILTER_OUT ? create($this, 0) : undefined;
     var value, result;
     for (;length > index; index++) if (NO_HOLES || index in self) {
       value = self[index];
@@ -1913,7 +1910,10 @@ var createMethod = function (TYPE) {
           case 5: return value;             // find
           case 6: return index;             // findIndex
           case 2: push.call(target, value); // filter
-        } else if (IS_EVERY) return false;  // every
+        } else switch (TYPE) {
+          case 4: return false;             // every
+          case 7: push.call(target, value); // filterOut
+        }
       }
     }
     return IS_FIND_INDEX ? -1 : IS_SOME || IS_EVERY ? IS_EVERY : target;
@@ -1941,7 +1941,10 @@ module.exports = {
   find: createMethod(5),
   // `Array.prototype.findIndex` method
   // https://tc39.github.io/ecma262/#sec-array.prototype.findIndex
-  findIndex: createMethod(6)
+  findIndex: createMethod(6),
+  // `Array.prototype.filterOut` method
+  // https://github.com/tc39/proposal-array-filtering
+  filterOut: createMethod(7)
 };
 
 
@@ -2406,7 +2409,7 @@ module.exports =
   check(typeof self == 'object' && self) ||
   check(typeof global == 'object' && global) ||
   // eslint-disable-next-line no-new-func
-  Function('return this')();
+  (function () { return this; })() || Function('return this')();
 
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__("c8ba")))
 
@@ -2476,7 +2479,7 @@ module.exports = Array.isArray || function isArray(arg) {
 /* harmony import */ var _mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_BtnDropdown_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__("ee49");
 /* harmony import */ var _mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_BtnDropdown_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_BtnDropdown_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__);
 /* unused harmony reexport * */
- /* unused harmony default export */ var _unused_webpack_default_export = (_mini_css_extract_plugin_dist_loader_js_ref_6_oneOf_1_0_css_loader_dist_cjs_js_ref_6_oneOf_1_1_vue_loader_lib_loaders_stylePostLoader_js_postcss_loader_src_index_js_ref_6_oneOf_1_2_cache_loader_dist_cjs_js_ref_0_0_vue_loader_lib_index_js_vue_loader_options_BtnDropdown_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default.a); 
+
 
 /***/ }),
 
@@ -2545,7 +2548,7 @@ if (typeof window !== 'undefined') {
 // EXTERNAL MODULE: ./src/css/Navbar.css
 var Navbar = __webpack_require__("5a29");
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/Navbar.vue?vue&type=template&id=23644c1a&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/Navbar.vue?vue&type=template&id=23644c1a&
 var Navbarvue_type_template_id_23644c1a_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('nav',{class:_vm.classes},[_vm._t("default")],2)}
 var staticRenderFns = []
 
@@ -2590,20 +2593,341 @@ function camelCase(string) {
     return string.charAt(0).toLowerCase() + string.substring(1);
 }
 
-// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/first.js
-function first(array) {
-    return (array && array.length) ? array[0] : undefined;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isArray.js
-function isArray(value) {
-    return Array.isArray(value);
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/capitalize.js
+function capitalize(string) {
+    return string.split(' ').map(value => {
+        return value.charAt(0).toUpperCase() + value.slice(1);
+    }).join(' ');
 }
 
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isObject.js
 function isObject(subject) {
     return (!!subject) && (subject.constructor === Object);
 };
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/now.js
+/**
+ * Gets the timestamp of the number of milliseconds that have elapsed since
+ * the Unix epoch (1 January 1970 00:00:00 UTC).
+ *
+ * @static
+ * @memberOf _
+ * @since 2.4.0
+ * @category Date
+ * @returns {number} Returns the timestamp.
+ * @example
+ *
+ * _.defer(function(stamp) {
+ *   console.log(_.now() - stamp);
+ * }, _.now());
+ * // => Logs the number of milliseconds it took for the deferred invocation.
+ */
+var now = function() {
+    return Date.now();
+};
+
+/* harmony default export */ var src_now = (now);
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isSymbol.js
+function isSymbol(value) {
+    return typeof value === 'symbol';
+}
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/toNumber.js
+
+
+
+/** Used as references for various `Number` constants. */
+var NAN = 0 / 0;
+
+/** Used to match leading and trailing whitespace. */
+var reTrim = /^\s+|\s+$/g;
+
+/** Used to detect bad signed hexadecimal string values. */
+var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
+
+/** Used to detect binary string values. */
+var reIsBinary = /^0b[01]+$/i;
+
+/** Used to detect octal string values. */
+var reIsOctal = /^0o[0-7]+$/i;
+
+/** Built-in method references without a dependency on `root`. */
+var freeParseInt = parseInt;
+
+/**
+ * Converts `value` to a number.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to process.
+ * @returns {number} Returns the number.
+ * @example
+ *
+ * _.toNumber(3.2);
+ * // => 3.2
+ *
+ * _.toNumber(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toNumber(Infinity);
+ * // => Infinity
+ *
+ * _.toNumber('3.2');
+ * // => 3.2
+ */
+function toNumber(value) {
+    if(typeof value == 'number') {
+        return value;
+    }
+    if(isSymbol(value)) {
+        return NAN;
+    }
+    if(isObject(value)) {
+        var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
+        value = isObject(other) ? (other + '') : other;
+    }
+    if(typeof value != 'string') {
+        return value === 0 ? value : +value;
+    }
+    value = value.replace(reTrim, '');
+    var isBinary = reIsBinary.test(value);
+    return (isBinary || reIsOctal.test(value))
+        ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
+        : (reIsBadHex.test(value) ? NAN : +value);
+}
+
+/* harmony default export */ var src_toNumber = (toNumber);
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/debounce.js
+
+
+
+
+/** Error message constants. */
+var FUNC_ERROR_TEXT = 'Expected a function';
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeMax = Math.max,
+    nativeMin = Math.min;
+
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait`
+ * milliseconds have elapsed since the last time the debounced function was
+ * invoked. The debounced function comes with a `cancel` method to cancel
+ * delayed `func` invocations and a `flush` method to immediately invoke them.
+ * Provide `options` to indicate whether `func` should be invoked on the
+ * leading and/or trailing edge of the `wait` timeout. The `func` is invoked
+ * with the last arguments provided to the debounced function. Subsequent
+ * calls to the debounced function return the result of the last `func`
+ * invocation.
+ *
+ * **Note:** If `leading` and `trailing` options are `true`, `func` is
+ * invoked on the trailing edge of the timeout only if the debounced function
+ * is invoked more than once during the `wait` timeout.
+ *
+ * If `wait` is `0` and `leading` is `false`, `func` invocation is deferred
+ * until to the next tick, similar to `setTimeout` with a timeout of `0`.
+ *
+ * See [David Corbacho's article](https://css-tricks.com/debouncing-throttling-explained-examples/)
+ * for details over the differences between `_.debounce` and `_.throttle`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Function
+ * @param {Function} func The function to debounce.
+ * @param {number} [wait=0] The number of milliseconds to delay.
+ * @param {Object} [options={}] The options object.
+ * @param {boolean} [options.leading=false]
+ *  Specify invoking on the leading edge of the timeout.
+ * @param {number} [options.maxWait]
+ *  The maximum time `func` is allowed to be delayed before it's invoked.
+ * @param {boolean} [options.trailing=true]
+ *  Specify invoking on the trailing edge of the timeout.
+ * @returns {Function} Returns the new debounced function.
+ * @example
+ *
+ * // Avoid costly calculations while the window size is in flux.
+ * jQuery(window).on('resize', _.debounce(calculateLayout, 150));
+ *
+ * // Invoke `sendMail` when clicked, debouncing subsequent calls.
+ * jQuery(element).on('click', _.debounce(sendMail, 300, {
+ *   'leading': true,
+ *   'trailing': false
+ * }));
+ *
+ * // Ensure `batchLog` is invoked once after 1 second of debounced calls.
+ * var debounced = _.debounce(batchLog, 250, { 'maxWait': 1000 });
+ * var source = new EventSource('/stream');
+ * jQuery(source).on('message', debounced);
+ *
+ * // Cancel the trailing debounced invocation.
+ * jQuery(window).on('popstate', debounced.cancel);
+ */
+function debounce(func, wait, options) {
+    var lastArgs,
+        lastThis,
+        maxWait,
+        result,
+        timerId,
+        lastCallTime,
+        lastInvokeTime = 0,
+        leading = false,
+        maxing = false,
+        trailing = true;
+
+    if(typeof func != 'function') {
+        throw new TypeError(FUNC_ERROR_TEXT);
+    }
+    wait = src_toNumber(wait) || 0;
+    if(isObject(options)) {
+        leading = !!options.leading;
+        maxing = 'maxWait' in options;
+        maxWait = maxing ? nativeMax(src_toNumber(options.maxWait) || 0, wait) : maxWait;
+        trailing = 'trailing' in options ? !!options.trailing : trailing;
+    }
+
+    function invokeFunc(time) {
+        var args = lastArgs,
+            thisArg = lastThis;
+
+        lastArgs = lastThis = undefined;
+        lastInvokeTime = time;
+        result = func.apply(thisArg, args);
+        return result;
+    }
+
+    function leadingEdge(time) {
+        // Reset any `maxWait` timer.
+        lastInvokeTime = time;
+        // Start the timer for the trailing edge.
+        timerId = setTimeout(timerExpired, wait);
+        // Invoke the leading edge.
+        return leading ? invokeFunc(time) : result;
+    }
+
+    function remainingWait(time) {
+        var timeSinceLastCall = time - lastCallTime,
+            timeSinceLastInvoke = time - lastInvokeTime,
+            timeWaiting = wait - timeSinceLastCall;
+
+        return maxing
+            ? nativeMin(timeWaiting, maxWait - timeSinceLastInvoke)
+            : timeWaiting;
+    }
+
+    function shouldInvoke(time) {
+        var timeSinceLastCall = time - lastCallTime,
+            timeSinceLastInvoke = time - lastInvokeTime;
+
+        // Either this is the first call, activity has stopped and we're at the
+        // trailing edge, the system time has gone backwards and we're treating
+        // it as the trailing edge, or we've hit the `maxWait` limit.
+        return (lastCallTime === undefined || (timeSinceLastCall >= wait) ||
+            (timeSinceLastCall < 0) || (maxing && timeSinceLastInvoke >= maxWait));
+    }
+
+    function timerExpired() {
+        var time = src_now();
+        if(shouldInvoke(time)) {
+            return trailingEdge(time);
+        }
+        // Restart the timer.
+        timerId = setTimeout(timerExpired, remainingWait(time));
+    }
+
+    function trailingEdge(time) {
+        timerId = undefined;
+
+        // Only invoke if we have `lastArgs` which means `func` has been
+        // debounced at least once.
+        if(trailing && lastArgs) {
+            return invokeFunc(time);
+        }
+        lastArgs = lastThis = undefined;
+        return result;
+    }
+
+    function cancel() {
+        if(timerId !== undefined) {
+            clearTimeout(timerId);
+        }
+        lastInvokeTime = 0;
+        lastArgs = lastCallTime = lastThis = timerId = undefined;
+    }
+
+    function flush() {
+        return timerId === undefined ? result : trailingEdge(src_now());
+    }
+
+    function debounced() {
+        var time = src_now(),
+            isInvoking = shouldInvoke(time);
+
+        lastArgs = arguments;
+        lastThis = this;
+        lastCallTime = time;
+
+        if(isInvoking) {
+            if(timerId === undefined) {
+                return leadingEdge(lastCallTime);
+            }
+            if(maxing) {
+                // Handle invocations in a tight loop.
+                timerId = setTimeout(timerExpired, wait);
+                return invokeFunc(lastCallTime);
+            }
+        }
+        if(timerId === undefined) {
+            timerId = setTimeout(timerExpired, wait);
+        }
+        return result;
+    }
+    debounced.cancel = cancel;
+    debounced.flush = flush;
+    return debounced;
+}
+
+/* harmony default export */ var src_debounce = (debounce);
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/deepExtend.js
+// import 'core-js/features/object/assign';
+
+
+/**
+ * Deep merge two objects.
+ * @param target
+ * @param ...sources
+*/
+function deepExtend(target, ...sources) {
+    if(!sources.length) return target;
+
+    const source = sources.shift();
+
+    if(isObject(target) && isObject(source)) {
+        for(const key in source) {
+            if(isObject(source[key])) {
+                if(!target[key]) Object.assign(target, { [key]: {} });
+                deepExtend(target[key], source[key]);
+            }
+            else {
+                Object.assign(target, { [key]: source[key] });
+            }
+        }
+    }
+
+    return deepExtend(target, ...sources);
+}
+
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/first.js
+function first(array) {
+    return (array && array.length) ? array[0] : undefined;
+}
+
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isArray.js
+// import 'core-js/features/array/is-array';
+
+function isArray(value) {
+    return Array.isArray(value);
+}
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/matches.js
 
 
@@ -2622,17 +2946,35 @@ function matches(properties) {
     };
 }
 
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isNull.js
+function isNull(value) {
+    return value === null;
+}
+
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isString.js
 function isString(value) {
     return typeof value === 'string';
+}
+
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isUndefined.js
+function isUndefined(value) {
+    return typeof value === 'undefined';
 }
 
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/get.js
 
 
 
-function get(object, path) {
-    return (isString(path) ? path.split('.') : (!isArray(path) ? [path] : path)).reduce((a, b) => a[b], object);
+
+
+function get(object, path, defaultValue) {
+    const value = (isString(path) ? path.split('.') : (
+        !isArray(path) ? [path] : path)
+    ).reduce((a, b) => a[b], object);
+
+    return !isUndefined(value) && !isNull(value) ? value : (
+        !isUndefined(defaultValue) ? defaultValue : value
+    );
 }
 
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/property.js
@@ -2734,11 +3076,6 @@ function isBoolean(subject) {
             && typeof subject.valueOf() === 'boolean'
     );
 }
-// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/isUndefined.js
-function isUndefined(value) {
-    return typeof value === 'undefined';
-}
-
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/kebabCase.js
 function kebabCase(str) {
     return str && str.replace ?
@@ -2771,6 +3108,27 @@ function prefix_prefix(subject, prefix, delimeter = '-') {
     return subject && prefixer(subject);
 }
 
+// CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/readFile.js
+
+
+function readFile(src, progress) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+            
+        if(isFunction(progress)) {
+            reader.onprogress = e => {
+                if(e.lengthComputable) {
+                    progress(parseInt((e.loaded / e.total) * 100, 10));
+                }
+            };
+        }
+
+        reader.onload = resolve;            
+        reader.onerror = reject;
+        reader.onabort = reject;
+        reader.readAsDataURL(src);
+    });
+}
 // CONCATENATED MODULE: ./node_modules/@vue-interface/utils/src/script.js
 const LOADED_SCRIPTS = {};
 
@@ -2904,676 +3262,15 @@ function transition(el, defaultValue) {
 
 
 
-// CONCATENATED MODULE: ./node_modules/lodash-es/_arrayReduce.js
-/**
- * A specialized version of `_.reduce` for arrays without support for
- * iteratee shorthands.
- *
- * @private
- * @param {Array} [array] The array to iterate over.
- * @param {Function} iteratee The function invoked per iteration.
- * @param {*} [accumulator] The initial value.
- * @param {boolean} [initAccum] Specify using the first element of `array` as
- *  the initial value.
- * @returns {*} Returns the accumulated value.
- */
-function arrayReduce(array, iteratee, accumulator, initAccum) {
-  var index = -1,
-      length = array == null ? 0 : array.length;
 
-  if (initAccum && length) {
-    accumulator = array[++index];
-  }
-  while (++index < length) {
-    accumulator = iteratee(accumulator, array[index], index, array);
-  }
-  return accumulator;
-}
 
-/* harmony default export */ var _arrayReduce = (arrayReduce);
 
-// CONCATENATED MODULE: ./node_modules/lodash-es/_basePropertyOf.js
-/**
- * The base implementation of `_.propertyOf` without support for deep paths.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {Function} Returns the new accessor function.
- */
-function basePropertyOf(object) {
-  return function(key) {
-    return object == null ? undefined : object[key];
-  };
-}
 
-/* harmony default export */ var _basePropertyOf = (basePropertyOf);
 
-// CONCATENATED MODULE: ./node_modules/lodash-es/_deburrLetter.js
 
 
-/** Used to map Latin Unicode letters to basic Latin letters. */
-var deburredLetters = {
-  // Latin-1 Supplement block.
-  '\xc0': 'A',  '\xc1': 'A', '\xc2': 'A', '\xc3': 'A', '\xc4': 'A', '\xc5': 'A',
-  '\xe0': 'a',  '\xe1': 'a', '\xe2': 'a', '\xe3': 'a', '\xe4': 'a', '\xe5': 'a',
-  '\xc7': 'C',  '\xe7': 'c',
-  '\xd0': 'D',  '\xf0': 'd',
-  '\xc8': 'E',  '\xc9': 'E', '\xca': 'E', '\xcb': 'E',
-  '\xe8': 'e',  '\xe9': 'e', '\xea': 'e', '\xeb': 'e',
-  '\xcc': 'I',  '\xcd': 'I', '\xce': 'I', '\xcf': 'I',
-  '\xec': 'i',  '\xed': 'i', '\xee': 'i', '\xef': 'i',
-  '\xd1': 'N',  '\xf1': 'n',
-  '\xd2': 'O',  '\xd3': 'O', '\xd4': 'O', '\xd5': 'O', '\xd6': 'O', '\xd8': 'O',
-  '\xf2': 'o',  '\xf3': 'o', '\xf4': 'o', '\xf5': 'o', '\xf6': 'o', '\xf8': 'o',
-  '\xd9': 'U',  '\xda': 'U', '\xdb': 'U', '\xdc': 'U',
-  '\xf9': 'u',  '\xfa': 'u', '\xfb': 'u', '\xfc': 'u',
-  '\xdd': 'Y',  '\xfd': 'y', '\xff': 'y',
-  '\xc6': 'Ae', '\xe6': 'ae',
-  '\xde': 'Th', '\xfe': 'th',
-  '\xdf': 'ss',
-  // Latin Extended-A block.
-  '\u0100': 'A',  '\u0102': 'A', '\u0104': 'A',
-  '\u0101': 'a',  '\u0103': 'a', '\u0105': 'a',
-  '\u0106': 'C',  '\u0108': 'C', '\u010a': 'C', '\u010c': 'C',
-  '\u0107': 'c',  '\u0109': 'c', '\u010b': 'c', '\u010d': 'c',
-  '\u010e': 'D',  '\u0110': 'D', '\u010f': 'd', '\u0111': 'd',
-  '\u0112': 'E',  '\u0114': 'E', '\u0116': 'E', '\u0118': 'E', '\u011a': 'E',
-  '\u0113': 'e',  '\u0115': 'e', '\u0117': 'e', '\u0119': 'e', '\u011b': 'e',
-  '\u011c': 'G',  '\u011e': 'G', '\u0120': 'G', '\u0122': 'G',
-  '\u011d': 'g',  '\u011f': 'g', '\u0121': 'g', '\u0123': 'g',
-  '\u0124': 'H',  '\u0126': 'H', '\u0125': 'h', '\u0127': 'h',
-  '\u0128': 'I',  '\u012a': 'I', '\u012c': 'I', '\u012e': 'I', '\u0130': 'I',
-  '\u0129': 'i',  '\u012b': 'i', '\u012d': 'i', '\u012f': 'i', '\u0131': 'i',
-  '\u0134': 'J',  '\u0135': 'j',
-  '\u0136': 'K',  '\u0137': 'k', '\u0138': 'k',
-  '\u0139': 'L',  '\u013b': 'L', '\u013d': 'L', '\u013f': 'L', '\u0141': 'L',
-  '\u013a': 'l',  '\u013c': 'l', '\u013e': 'l', '\u0140': 'l', '\u0142': 'l',
-  '\u0143': 'N',  '\u0145': 'N', '\u0147': 'N', '\u014a': 'N',
-  '\u0144': 'n',  '\u0146': 'n', '\u0148': 'n', '\u014b': 'n',
-  '\u014c': 'O',  '\u014e': 'O', '\u0150': 'O',
-  '\u014d': 'o',  '\u014f': 'o', '\u0151': 'o',
-  '\u0154': 'R',  '\u0156': 'R', '\u0158': 'R',
-  '\u0155': 'r',  '\u0157': 'r', '\u0159': 'r',
-  '\u015a': 'S',  '\u015c': 'S', '\u015e': 'S', '\u0160': 'S',
-  '\u015b': 's',  '\u015d': 's', '\u015f': 's', '\u0161': 's',
-  '\u0162': 'T',  '\u0164': 'T', '\u0166': 'T',
-  '\u0163': 't',  '\u0165': 't', '\u0167': 't',
-  '\u0168': 'U',  '\u016a': 'U', '\u016c': 'U', '\u016e': 'U', '\u0170': 'U', '\u0172': 'U',
-  '\u0169': 'u',  '\u016b': 'u', '\u016d': 'u', '\u016f': 'u', '\u0171': 'u', '\u0173': 'u',
-  '\u0174': 'W',  '\u0175': 'w',
-  '\u0176': 'Y',  '\u0177': 'y', '\u0178': 'Y',
-  '\u0179': 'Z',  '\u017b': 'Z', '\u017d': 'Z',
-  '\u017a': 'z',  '\u017c': 'z', '\u017e': 'z',
-  '\u0132': 'IJ', '\u0133': 'ij',
-  '\u0152': 'Oe', '\u0153': 'oe',
-  '\u0149': "'n", '\u017f': 's'
-};
-
-/**
- * Used by `_.deburr` to convert Latin-1 Supplement and Latin Extended-A
- * letters to basic Latin letters.
- *
- * @private
- * @param {string} letter The matched letter to deburr.
- * @returns {string} Returns the deburred letter.
- */
-var deburrLetter = _basePropertyOf(deburredLetters);
-
-/* harmony default export */ var _deburrLetter = (deburrLetter);
-
-// EXTERNAL MODULE: ./node_modules/lodash-es/_freeGlobal.js
-var _freeGlobal = __webpack_require__("5ea3");
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_root.js
-
-
-/** Detect free variable `self`. */
-var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
-
-/** Used as a reference to the global object. */
-var root = _freeGlobal["a" /* default */] || freeSelf || Function('return this')();
-
-/* harmony default export */ var _root = (root);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_Symbol.js
-
-
-/** Built-in value references. */
-var Symbol = _root.Symbol;
-
-/* harmony default export */ var _Symbol = (Symbol);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_arrayMap.js
-/**
- * A specialized version of `_.map` for arrays without support for iteratee
- * shorthands.
- *
- * @private
- * @param {Array} [array] The array to iterate over.
- * @param {Function} iteratee The function invoked per iteration.
- * @returns {Array} Returns the new mapped array.
- */
-function arrayMap(array, iteratee) {
-  var index = -1,
-      length = array == null ? 0 : array.length,
-      result = Array(length);
-
-  while (++index < length) {
-    result[index] = iteratee(array[index], index, array);
-  }
-  return result;
-}
-
-/* harmony default export */ var _arrayMap = (arrayMap);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/isArray.js
-/**
- * Checks if `value` is classified as an `Array` object.
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an array, else `false`.
- * @example
- *
- * _.isArray([1, 2, 3]);
- * // => true
- *
- * _.isArray(document.body.children);
- * // => false
- *
- * _.isArray('abc');
- * // => false
- *
- * _.isArray(_.noop);
- * // => false
- */
-var isArray_isArray = Array.isArray;
-
-/* harmony default export */ var lodash_es_isArray = (isArray_isArray);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_getRawTag.js
-
-
-/** Used for built-in method references. */
-var objectProto = Object.prototype;
-
-/** Used to check objects for own properties. */
-var _getRawTag_hasOwnProperty = objectProto.hasOwnProperty;
-
-/**
- * Used to resolve the
- * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
- * of values.
- */
-var nativeObjectToString = objectProto.toString;
-
-/** Built-in value references. */
-var symToStringTag = _Symbol ? _Symbol.toStringTag : undefined;
-
-/**
- * A specialized version of `baseGetTag` which ignores `Symbol.toStringTag` values.
- *
- * @private
- * @param {*} value The value to query.
- * @returns {string} Returns the raw `toStringTag`.
- */
-function getRawTag(value) {
-  var isOwn = _getRawTag_hasOwnProperty.call(value, symToStringTag),
-      tag = value[symToStringTag];
-
-  try {
-    value[symToStringTag] = undefined;
-    var unmasked = true;
-  } catch (e) {}
-
-  var result = nativeObjectToString.call(value);
-  if (unmasked) {
-    if (isOwn) {
-      value[symToStringTag] = tag;
-    } else {
-      delete value[symToStringTag];
-    }
-  }
-  return result;
-}
-
-/* harmony default export */ var _getRawTag = (getRawTag);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_objectToString.js
-/** Used for built-in method references. */
-var _objectToString_objectProto = Object.prototype;
-
-/**
- * Used to resolve the
- * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
- * of values.
- */
-var _objectToString_nativeObjectToString = _objectToString_objectProto.toString;
-
-/**
- * Converts `value` to a string using `Object.prototype.toString`.
- *
- * @private
- * @param {*} value The value to convert.
- * @returns {string} Returns the converted string.
- */
-function objectToString(value) {
-  return _objectToString_nativeObjectToString.call(value);
-}
-
-/* harmony default export */ var _objectToString = (objectToString);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_baseGetTag.js
-
-
-
-
-/** `Object#toString` result references. */
-var nullTag = '[object Null]',
-    undefinedTag = '[object Undefined]';
-
-/** Built-in value references. */
-var _baseGetTag_symToStringTag = _Symbol ? _Symbol.toStringTag : undefined;
-
-/**
- * The base implementation of `getTag` without fallbacks for buggy environments.
- *
- * @private
- * @param {*} value The value to query.
- * @returns {string} Returns the `toStringTag`.
- */
-function baseGetTag(value) {
-  if (value == null) {
-    return value === undefined ? undefinedTag : nullTag;
-  }
-  return (_baseGetTag_symToStringTag && _baseGetTag_symToStringTag in Object(value))
-    ? _getRawTag(value)
-    : _objectToString(value);
-}
-
-/* harmony default export */ var _baseGetTag = (baseGetTag);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/isObjectLike.js
-/**
- * Checks if `value` is object-like. A value is object-like if it's not `null`
- * and has a `typeof` result of "object".
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
- * @example
- *
- * _.isObjectLike({});
- * // => true
- *
- * _.isObjectLike([1, 2, 3]);
- * // => true
- *
- * _.isObjectLike(_.noop);
- * // => false
- *
- * _.isObjectLike(null);
- * // => false
- */
-function isObjectLike(value) {
-  return value != null && typeof value == 'object';
-}
-
-/* harmony default export */ var lodash_es_isObjectLike = (isObjectLike);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/isSymbol.js
-
-
-
-/** `Object#toString` result references. */
-var symbolTag = '[object Symbol]';
-
-/**
- * Checks if `value` is classified as a `Symbol` primitive or object.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a symbol, else `false`.
- * @example
- *
- * _.isSymbol(Symbol.iterator);
- * // => true
- *
- * _.isSymbol('abc');
- * // => false
- */
-function isSymbol(value) {
-  return typeof value == 'symbol' ||
-    (lodash_es_isObjectLike(value) && _baseGetTag(value) == symbolTag);
-}
-
-/* harmony default export */ var lodash_es_isSymbol = (isSymbol);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_baseToString.js
-
-
-
-
-
-/** Used as references for various `Number` constants. */
-var INFINITY = 1 / 0;
-
-/** Used to convert symbols to primitives and strings. */
-var symbolProto = _Symbol ? _Symbol.prototype : undefined,
-    symbolToString = symbolProto ? symbolProto.toString : undefined;
-
-/**
- * The base implementation of `_.toString` which doesn't convert nullish
- * values to empty strings.
- *
- * @private
- * @param {*} value The value to process.
- * @returns {string} Returns the string.
- */
-function baseToString(value) {
-  // Exit early for strings to avoid a performance hit in some environments.
-  if (typeof value == 'string') {
-    return value;
-  }
-  if (lodash_es_isArray(value)) {
-    // Recursively convert values (susceptible to call stack limits).
-    return _arrayMap(value, baseToString) + '';
-  }
-  if (lodash_es_isSymbol(value)) {
-    return symbolToString ? symbolToString.call(value) : '';
-  }
-  var result = (value + '');
-  return (result == '0' && (1 / value) == -INFINITY) ? '-0' : result;
-}
-
-/* harmony default export */ var _baseToString = (baseToString);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/toString.js
-
-
-/**
- * Converts `value` to a string. An empty string is returned for `null`
- * and `undefined` values. The sign of `-0` is preserved.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to convert.
- * @returns {string} Returns the converted string.
- * @example
- *
- * _.toString(null);
- * // => ''
- *
- * _.toString(-0);
- * // => '-0'
- *
- * _.toString([1, 2, 3]);
- * // => '1,2,3'
- */
-function toString_toString(value) {
-  return value == null ? '' : _baseToString(value);
-}
-
-/* harmony default export */ var lodash_es_toString = (toString_toString);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/deburr.js
-
-
-
-/** Used to match Latin Unicode letters (excluding mathematical operators). */
-var reLatin = /[\xc0-\xd6\xd8-\xf6\xf8-\xff\u0100-\u017f]/g;
-
-/** Used to compose unicode character classes. */
-var rsComboMarksRange = '\\u0300-\\u036f',
-    reComboHalfMarksRange = '\\ufe20-\\ufe2f',
-    rsComboSymbolsRange = '\\u20d0-\\u20ff',
-    rsComboRange = rsComboMarksRange + reComboHalfMarksRange + rsComboSymbolsRange;
-
-/** Used to compose unicode capture groups. */
-var rsCombo = '[' + rsComboRange + ']';
-
-/**
- * Used to match [combining diacritical marks](https://en.wikipedia.org/wiki/Combining_Diacritical_Marks) and
- * [combining diacritical marks for symbols](https://en.wikipedia.org/wiki/Combining_Diacritical_Marks_for_Symbols).
- */
-var reComboMark = RegExp(rsCombo, 'g');
-
-/**
- * Deburrs `string` by converting
- * [Latin-1 Supplement](https://en.wikipedia.org/wiki/Latin-1_Supplement_(Unicode_block)#Character_table)
- * and [Latin Extended-A](https://en.wikipedia.org/wiki/Latin_Extended-A)
- * letters to basic Latin letters and removing
- * [combining diacritical marks](https://en.wikipedia.org/wiki/Combining_Diacritical_Marks).
- *
- * @static
- * @memberOf _
- * @since 3.0.0
- * @category String
- * @param {string} [string=''] The string to deburr.
- * @returns {string} Returns the deburred string.
- * @example
- *
- * _.deburr('déjà vu');
- * // => 'deja vu'
- */
-function deburr(string) {
-  string = lodash_es_toString(string);
-  return string && string.replace(reLatin, _deburrLetter).replace(reComboMark, '');
-}
-
-/* harmony default export */ var lodash_es_deburr = (deburr);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_asciiWords.js
-/** Used to match words composed of alphanumeric characters. */
-var reAsciiWord = /[^\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
-
-/**
- * Splits an ASCII `string` into an array of its words.
- *
- * @private
- * @param {string} The string to inspect.
- * @returns {Array} Returns the words of `string`.
- */
-function asciiWords(string) {
-  return string.match(reAsciiWord) || [];
-}
-
-/* harmony default export */ var _asciiWords = (asciiWords);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_hasUnicodeWord.js
-/** Used to detect strings that need a more robust regexp to match words. */
-var reHasUnicodeWord = /[a-z][A-Z]|[A-Z]{2}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]|[^a-zA-Z0-9 ]/;
-
-/**
- * Checks if `string` contains a word composed of Unicode symbols.
- *
- * @private
- * @param {string} string The string to inspect.
- * @returns {boolean} Returns `true` if a word is found, else `false`.
- */
-function hasUnicodeWord(string) {
-  return reHasUnicodeWord.test(string);
-}
-
-/* harmony default export */ var _hasUnicodeWord = (hasUnicodeWord);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_unicodeWords.js
-/** Used to compose unicode character classes. */
-var rsAstralRange = '\\ud800-\\udfff',
-    _unicodeWords_rsComboMarksRange = '\\u0300-\\u036f',
-    _unicodeWords_reComboHalfMarksRange = '\\ufe20-\\ufe2f',
-    _unicodeWords_rsComboSymbolsRange = '\\u20d0-\\u20ff',
-    _unicodeWords_rsComboRange = _unicodeWords_rsComboMarksRange + _unicodeWords_reComboHalfMarksRange + _unicodeWords_rsComboSymbolsRange,
-    rsDingbatRange = '\\u2700-\\u27bf',
-    rsLowerRange = 'a-z\\xdf-\\xf6\\xf8-\\xff',
-    rsMathOpRange = '\\xac\\xb1\\xd7\\xf7',
-    rsNonCharRange = '\\x00-\\x2f\\x3a-\\x40\\x5b-\\x60\\x7b-\\xbf',
-    rsPunctuationRange = '\\u2000-\\u206f',
-    rsSpaceRange = ' \\t\\x0b\\f\\xa0\\ufeff\\n\\r\\u2028\\u2029\\u1680\\u180e\\u2000\\u2001\\u2002\\u2003\\u2004\\u2005\\u2006\\u2007\\u2008\\u2009\\u200a\\u202f\\u205f\\u3000',
-    rsUpperRange = 'A-Z\\xc0-\\xd6\\xd8-\\xde',
-    rsVarRange = '\\ufe0e\\ufe0f',
-    rsBreakRange = rsMathOpRange + rsNonCharRange + rsPunctuationRange + rsSpaceRange;
-
-/** Used to compose unicode capture groups. */
-var rsApos = "['\u2019]",
-    rsBreak = '[' + rsBreakRange + ']',
-    _unicodeWords_rsCombo = '[' + _unicodeWords_rsComboRange + ']',
-    rsDigits = '\\d+',
-    rsDingbat = '[' + rsDingbatRange + ']',
-    rsLower = '[' + rsLowerRange + ']',
-    rsMisc = '[^' + rsAstralRange + rsBreakRange + rsDigits + rsDingbatRange + rsLowerRange + rsUpperRange + ']',
-    rsFitz = '\\ud83c[\\udffb-\\udfff]',
-    rsModifier = '(?:' + _unicodeWords_rsCombo + '|' + rsFitz + ')',
-    rsNonAstral = '[^' + rsAstralRange + ']',
-    rsRegional = '(?:\\ud83c[\\udde6-\\uddff]){2}',
-    rsSurrPair = '[\\ud800-\\udbff][\\udc00-\\udfff]',
-    rsUpper = '[' + rsUpperRange + ']',
-    rsZWJ = '\\u200d';
-
-/** Used to compose unicode regexes. */
-var rsMiscLower = '(?:' + rsLower + '|' + rsMisc + ')',
-    rsMiscUpper = '(?:' + rsUpper + '|' + rsMisc + ')',
-    rsOptContrLower = '(?:' + rsApos + '(?:d|ll|m|re|s|t|ve))?',
-    rsOptContrUpper = '(?:' + rsApos + '(?:D|LL|M|RE|S|T|VE))?',
-    reOptMod = rsModifier + '?',
-    rsOptVar = '[' + rsVarRange + ']?',
-    rsOptJoin = '(?:' + rsZWJ + '(?:' + [rsNonAstral, rsRegional, rsSurrPair].join('|') + ')' + rsOptVar + reOptMod + ')*',
-    rsOrdLower = '\\d*(?:1st|2nd|3rd|(?![123])\\dth)(?=\\b|[A-Z_])',
-    rsOrdUpper = '\\d*(?:1ST|2ND|3RD|(?![123])\\dTH)(?=\\b|[a-z_])',
-    rsSeq = rsOptVar + reOptMod + rsOptJoin,
-    rsEmoji = '(?:' + [rsDingbat, rsRegional, rsSurrPair].join('|') + ')' + rsSeq;
-
-/** Used to match complex or compound words. */
-var reUnicodeWord = RegExp([
-  rsUpper + '?' + rsLower + '+' + rsOptContrLower + '(?=' + [rsBreak, rsUpper, '$'].join('|') + ')',
-  rsMiscUpper + '+' + rsOptContrUpper + '(?=' + [rsBreak, rsUpper + rsMiscLower, '$'].join('|') + ')',
-  rsUpper + '?' + rsMiscLower + '+' + rsOptContrLower,
-  rsUpper + '+' + rsOptContrUpper,
-  rsOrdUpper,
-  rsOrdLower,
-  rsDigits,
-  rsEmoji
-].join('|'), 'g');
-
-/**
- * Splits a Unicode `string` into an array of its words.
- *
- * @private
- * @param {string} The string to inspect.
- * @returns {Array} Returns the words of `string`.
- */
-function unicodeWords(string) {
-  return string.match(reUnicodeWord) || [];
-}
-
-/* harmony default export */ var _unicodeWords = (unicodeWords);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/words.js
-
-
-
-
-
-/**
- * Splits `string` into an array of its words.
- *
- * @static
- * @memberOf _
- * @since 3.0.0
- * @category String
- * @param {string} [string=''] The string to inspect.
- * @param {RegExp|string} [pattern] The pattern to match words.
- * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
- * @returns {Array} Returns the words of `string`.
- * @example
- *
- * _.words('fred, barney, & pebbles');
- * // => ['fred', 'barney', 'pebbles']
- *
- * _.words('fred, barney, & pebbles', /[^, ]+/g);
- * // => ['fred', 'barney', '&', 'pebbles']
- */
-function words(string, pattern, guard) {
-  string = lodash_es_toString(string);
-  pattern = guard ? undefined : pattern;
-
-  if (pattern === undefined) {
-    return _hasUnicodeWord(string) ? _unicodeWords(string) : _asciiWords(string);
-  }
-  return string.match(pattern) || [];
-}
-
-/* harmony default export */ var lodash_es_words = (words);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/_createCompounder.js
-
-
-
-
-/** Used to compose unicode capture groups. */
-var _createCompounder_rsApos = "['\u2019]";
-
-/** Used to match apostrophes. */
-var reApos = RegExp(_createCompounder_rsApos, 'g');
-
-/**
- * Creates a function like `_.camelCase`.
- *
- * @private
- * @param {Function} callback The function to combine each word.
- * @returns {Function} Returns the new compounder function.
- */
-function createCompounder(callback) {
-  return function(string) {
-    return _arrayReduce(lodash_es_words(lodash_es_deburr(string).replace(reApos, '')), callback, '');
-  };
-}
-
-/* harmony default export */ var _createCompounder = (createCompounder);
-
-// CONCATENATED MODULE: ./node_modules/lodash-es/kebabCase.js
-
-
-/**
- * Converts `string` to
- * [kebab case](https://en.wikipedia.org/wiki/Letter_case#Special_case_styles).
- *
- * @static
- * @memberOf _
- * @since 3.0.0
- * @category String
- * @param {string} [string=''] The string to convert.
- * @returns {string} Returns the kebab cased string.
- * @example
- *
- * _.kebabCase('Foo Bar');
- * // => 'foo-bar'
- *
- * _.kebabCase('fooBar');
- * // => 'foo-bar'
- *
- * _.kebabCase('__FOO_BAR__');
- * // => 'foo-bar'
- */
-var kebabCase_kebabCase = _createCompounder(function(result, word, index) {
-  return result + (index ? '-' : '') + word.toLowerCase();
-});
-
-/* harmony default export */ var lodash_es_kebabCase = (kebabCase_kebabCase);
 
 // CONCATENATED MODULE: ./node_modules/@vue-interface/variant/src/Variant.js
-
 
 
 /* harmony default export */ var Variant = ({
@@ -3612,7 +3309,7 @@ var kebabCase_kebabCase = _createCompounder(function(result, word, index) {
          * @param {String}
          */
         variantClassPrefix() {
-            return lodash_es_kebabCase(this.variantPrefix);
+            return kebabCase(this.variantPrefix);
         },
 
         /**
@@ -3914,7 +3611,7 @@ var NavbarBrand_component = normalizeComponent(
 )
 
 /* harmony default export */ var NavbarBrand = (NavbarBrand_component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/NavbarToggler.vue?vue&type=template&id=228068de&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/NavbarToggler.vue?vue&type=template&id=228068de&
 var NavbarTogglervue_type_template_id_228068de_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('a',{directives:[{name:"collapse",rawName:"v-collapse",value:(_vm.target),expression:"target"}],staticClass:"navbar-toggler",attrs:{"href":"#","data-toggle":"collapse","data-target":_vm.target,"aria-controls":_vm.target,"aria-label":_vm.ariaLabel},on:{"click":_vm.onClick}},[_vm._t("default",[_c('span',{staticClass:"navbar-toggler-icon"})])],2)}
 var NavbarTogglervue_type_template_id_228068de_staticRenderFns = []
 
@@ -4116,7 +3813,7 @@ var NavbarCollapse_component = normalizeComponent(
 )
 
 /* harmony default export */ var NavbarCollapse = (NavbarCollapse_component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/NavbarNav.vue?vue&type=template&id=db44626e&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/NavbarNav.vue?vue&type=template&id=db44626e&
 var NavbarNavvue_type_template_id_db44626e_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('ol',{staticClass:"navbar-nav"},[_c('navigation-items',[_vm._t("default")],2)],1)}
 var NavbarNavvue_type_template_id_db44626e_staticRenderFns = []
 
@@ -4140,694 +3837,6 @@ var es_string_replace = __webpack_require__("5319");
 
 // EXTERNAL MODULE: ./node_modules/core-js/modules/es.string.trim.js
 var es_string_trim = __webpack_require__("498a");
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/camelCase.js
-function camelCase_camelCase(string) {
-    if(!string) {
-        return string;
-    }
-    
-    string = string.replace(/(?:(^.)|([-_\s]+.))/g, function(match) {
-        return match.charAt(match.length - 1).toUpperCase();
-    });
-
-    return string.charAt(0).toLowerCase() + string.substring(1);
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/capitalize.js
-function capitalize(string) {
-    return string.split(' ').map(value => {
-        return value.charAt(0).toUpperCase() + value.slice(1);
-    }).join(' ');
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isObject.js
-function isObject_isObject(subject) {
-    return (!!subject) && (subject.constructor === Object);
-};
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/now.js
-/**
- * Gets the timestamp of the number of milliseconds that have elapsed since
- * the Unix epoch (1 January 1970 00:00:00 UTC).
- *
- * @static
- * @memberOf _
- * @since 2.4.0
- * @category Date
- * @returns {number} Returns the timestamp.
- * @example
- *
- * _.defer(function(stamp) {
- *   console.log(_.now() - stamp);
- * }, _.now());
- * // => Logs the number of milliseconds it took for the deferred invocation.
- */
-var now = function() {
-    return Date.now();
-};
-
-/* harmony default export */ var src_now = (now);
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isSymbol.js
-function isSymbol_isSymbol(value) {
-    return typeof value === 'symbol';
-}
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/toNumber.js
-
-
-
-/** Used as references for various `Number` constants. */
-var NAN = 0 / 0;
-
-/** Used to match leading and trailing whitespace. */
-var reTrim = /^\s+|\s+$/g;
-
-/** Used to detect bad signed hexadecimal string values. */
-var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
-
-/** Used to detect binary string values. */
-var reIsBinary = /^0b[01]+$/i;
-
-/** Used to detect octal string values. */
-var reIsOctal = /^0o[0-7]+$/i;
-
-/** Built-in method references without a dependency on `root`. */
-var freeParseInt = parseInt;
-
-/**
- * Converts `value` to a number.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to process.
- * @returns {number} Returns the number.
- * @example
- *
- * _.toNumber(3.2);
- * // => 3.2
- *
- * _.toNumber(Number.MIN_VALUE);
- * // => 5e-324
- *
- * _.toNumber(Infinity);
- * // => Infinity
- *
- * _.toNumber('3.2');
- * // => 3.2
- */
-function toNumber(value) {
-    if(typeof value == 'number') {
-        return value;
-    }
-    if(isSymbol_isSymbol(value)) {
-        return NAN;
-    }
-    if(isObject_isObject(value)) {
-        var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
-        value = isObject_isObject(other) ? (other + '') : other;
-    }
-    if(typeof value != 'string') {
-        return value === 0 ? value : +value;
-    }
-    value = value.replace(reTrim, '');
-    var isBinary = reIsBinary.test(value);
-    return (isBinary || reIsOctal.test(value))
-        ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
-        : (reIsBadHex.test(value) ? NAN : +value);
-}
-
-/* harmony default export */ var src_toNumber = (toNumber);
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/debounce.js
-
-
-
-
-/** Error message constants. */
-var FUNC_ERROR_TEXT = 'Expected a function';
-
-/* Built-in method references for those with the same name as other `lodash` methods. */
-var nativeMax = Math.max,
-    nativeMin = Math.min;
-
-/**
- * Creates a debounced function that delays invoking `func` until after `wait`
- * milliseconds have elapsed since the last time the debounced function was
- * invoked. The debounced function comes with a `cancel` method to cancel
- * delayed `func` invocations and a `flush` method to immediately invoke them.
- * Provide `options` to indicate whether `func` should be invoked on the
- * leading and/or trailing edge of the `wait` timeout. The `func` is invoked
- * with the last arguments provided to the debounced function. Subsequent
- * calls to the debounced function return the result of the last `func`
- * invocation.
- *
- * **Note:** If `leading` and `trailing` options are `true`, `func` is
- * invoked on the trailing edge of the timeout only if the debounced function
- * is invoked more than once during the `wait` timeout.
- *
- * If `wait` is `0` and `leading` is `false`, `func` invocation is deferred
- * until to the next tick, similar to `setTimeout` with a timeout of `0`.
- *
- * See [David Corbacho's article](https://css-tricks.com/debouncing-throttling-explained-examples/)
- * for details over the differences between `_.debounce` and `_.throttle`.
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Function
- * @param {Function} func The function to debounce.
- * @param {number} [wait=0] The number of milliseconds to delay.
- * @param {Object} [options={}] The options object.
- * @param {boolean} [options.leading=false]
- *  Specify invoking on the leading edge of the timeout.
- * @param {number} [options.maxWait]
- *  The maximum time `func` is allowed to be delayed before it's invoked.
- * @param {boolean} [options.trailing=true]
- *  Specify invoking on the trailing edge of the timeout.
- * @returns {Function} Returns the new debounced function.
- * @example
- *
- * // Avoid costly calculations while the window size is in flux.
- * jQuery(window).on('resize', _.debounce(calculateLayout, 150));
- *
- * // Invoke `sendMail` when clicked, debouncing subsequent calls.
- * jQuery(element).on('click', _.debounce(sendMail, 300, {
- *   'leading': true,
- *   'trailing': false
- * }));
- *
- * // Ensure `batchLog` is invoked once after 1 second of debounced calls.
- * var debounced = _.debounce(batchLog, 250, { 'maxWait': 1000 });
- * var source = new EventSource('/stream');
- * jQuery(source).on('message', debounced);
- *
- * // Cancel the trailing debounced invocation.
- * jQuery(window).on('popstate', debounced.cancel);
- */
-function debounce(func, wait, options) {
-    var lastArgs,
-        lastThis,
-        maxWait,
-        result,
-        timerId,
-        lastCallTime,
-        lastInvokeTime = 0,
-        leading = false,
-        maxing = false,
-        trailing = true;
-
-    if(typeof func != 'function') {
-        throw new TypeError(FUNC_ERROR_TEXT);
-    }
-    wait = src_toNumber(wait) || 0;
-    if(isObject_isObject(options)) {
-        leading = !!options.leading;
-        maxing = 'maxWait' in options;
-        maxWait = maxing ? nativeMax(src_toNumber(options.maxWait) || 0, wait) : maxWait;
-        trailing = 'trailing' in options ? !!options.trailing : trailing;
-    }
-
-    function invokeFunc(time) {
-        var args = lastArgs,
-            thisArg = lastThis;
-
-        lastArgs = lastThis = undefined;
-        lastInvokeTime = time;
-        result = func.apply(thisArg, args);
-        return result;
-    }
-
-    function leadingEdge(time) {
-        // Reset any `maxWait` timer.
-        lastInvokeTime = time;
-        // Start the timer for the trailing edge.
-        timerId = setTimeout(timerExpired, wait);
-        // Invoke the leading edge.
-        return leading ? invokeFunc(time) : result;
-    }
-
-    function remainingWait(time) {
-        var timeSinceLastCall = time - lastCallTime,
-            timeSinceLastInvoke = time - lastInvokeTime,
-            timeWaiting = wait - timeSinceLastCall;
-
-        return maxing
-            ? nativeMin(timeWaiting, maxWait - timeSinceLastInvoke)
-            : timeWaiting;
-    }
-
-    function shouldInvoke(time) {
-        var timeSinceLastCall = time - lastCallTime,
-            timeSinceLastInvoke = time - lastInvokeTime;
-
-        // Either this is the first call, activity has stopped and we're at the
-        // trailing edge, the system time has gone backwards and we're treating
-        // it as the trailing edge, or we've hit the `maxWait` limit.
-        return (lastCallTime === undefined || (timeSinceLastCall >= wait) ||
-            (timeSinceLastCall < 0) || (maxing && timeSinceLastInvoke >= maxWait));
-    }
-
-    function timerExpired() {
-        var time = src_now();
-        if(shouldInvoke(time)) {
-            return trailingEdge(time);
-        }
-        // Restart the timer.
-        timerId = setTimeout(timerExpired, remainingWait(time));
-    }
-
-    function trailingEdge(time) {
-        timerId = undefined;
-
-        // Only invoke if we have `lastArgs` which means `func` has been
-        // debounced at least once.
-        if(trailing && lastArgs) {
-            return invokeFunc(time);
-        }
-        lastArgs = lastThis = undefined;
-        return result;
-    }
-
-    function cancel() {
-        if(timerId !== undefined) {
-            clearTimeout(timerId);
-        }
-        lastInvokeTime = 0;
-        lastArgs = lastCallTime = lastThis = timerId = undefined;
-    }
-
-    function flush() {
-        return timerId === undefined ? result : trailingEdge(src_now());
-    }
-
-    function debounced() {
-        var time = src_now(),
-            isInvoking = shouldInvoke(time);
-
-        lastArgs = arguments;
-        lastThis = this;
-        lastCallTime = time;
-
-        if(isInvoking) {
-            if(timerId === undefined) {
-                return leadingEdge(lastCallTime);
-            }
-            if(maxing) {
-                // Handle invocations in a tight loop.
-                timerId = setTimeout(timerExpired, wait);
-                return invokeFunc(lastCallTime);
-            }
-        }
-        if(timerId === undefined) {
-            timerId = setTimeout(timerExpired, wait);
-        }
-        return result;
-    }
-    debounced.cancel = cancel;
-    debounced.flush = flush;
-    return debounced;
-}
-
-/* harmony default export */ var src_debounce = (debounce);
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/deepExtend.js
-
-
-/**
- * Deep merge two objects.
- * @param target
- * @param ...sources
-*/
-function deepExtend(target, ...sources) {
-    if(!sources.length) return target;
-
-    const source = sources.shift();
-
-    if(isObject_isObject(target) && isObject_isObject(source)) {
-        for(const key in source) {
-            if(isObject_isObject(source[key])) {
-                if(!target[key]) Object.assign(target, { [key]: {} });
-                deepExtend(target[key], source[key]);
-            }
-            else {
-                Object.assign(target, { [key]: source[key] });
-            }
-        }
-    }
-
-    return deepExtend(target, ...sources);
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/first.js
-function first_first(array) {
-    return (array && array.length) ? array[0] : undefined;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isArray.js
-function src_isArray_isArray(value) {
-    return Array.isArray(value);
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/matches.js
-
-
-function matches_matches(properties) {
-    return subject => {
-        for(const i in properties) {
-            if(isObject_isObject(properties[i])) {
-                return subject[i] ? matches_matches(properties[i])(subject[i]) : false;
-            }
-            else if(!subject || subject[i] !== properties[i]) {
-                return false;
-            }
-        }
-
-        return true;
-    };
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isNull.js
-function isNull(value) {
-    return value === null;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isString.js
-function isString_isString(value) {
-    return typeof value === 'string';
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isUndefined.js
-function isUndefined_isUndefined(value) {
-    return typeof value === 'undefined';
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/get.js
-
-
-
-
-
-function get_get(object, path, defaultValue) {
-    const value = (isString_isString(path) ? path.split('.') : (
-        !src_isArray_isArray(path) ? [path] : path)
-    ).reduce((a, b) => a[b], object);
-
-    return !isUndefined_isUndefined(value) && !isNull(value) ? value : (
-        !isUndefined_isUndefined(defaultValue) ? defaultValue : value
-    );
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/property.js
-
-
-function property_property(path) {
-    return object => {
-        return get_get(object, path);
-    };
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isFunction.js
-function isFunction_isFunction(value) {
-    return value instanceof Function;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/matchesProperty.js
-
-
-function matchesProperty_matchesProperty(path, value) {
-    return subject => {
-        return get_get(subject, path) === value;
-    };
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/predicate.js
-
-
-
-
-
-
-
-function predicate_predicate(value) {
-    if(isObject_isObject(value)) {
-        value = matches_matches(value);
-    }
-    else if(src_isArray_isArray(value)) {
-        value = matchesProperty_matchesProperty(value[0], value[1]);
-    }
-    else if(!isFunction_isFunction(value)) {
-        value = property_property(value);
-    }
-
-    return value;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/find.js
-
-
-
-function find_find(subject, value) {
-    return first_first(subject.filter(object => predicate_predicate(value)(object)));
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isNumber.js
-function isNumber_isNumber(value) {
-    return (typeof value === 'number') || (
-        value ? value.toString() === '[object Number]' : false
-    );
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isNumeric.js
-
-
-
-function isNumeric_isNumeric(value) {
-    return isNumber_isNumber(value) || (
-        !!value && !src_isArray_isArray(value) && !!value.toString().match(/^-?[\d.,]+$/)
-    );
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/key.js
-
-
-function src_key_key(value) {
-    return isNumeric_isNumeric(value) ? parseFloat(value) : value;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/findIndex.js
-
-
-
-function findIndex_findIndex(subject, value) {
-    for(const i in subject) {
-        if(predicate_predicate(value)(subject[i])) {
-            return src_key_key(i);
-        }
-    }
-
-    return -1;
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/isBoolean.js
-function isBoolean_isBoolean(subject) {
-    return typeof subject === 'boolean' || (
-        typeof subject === 'object'
-            && subject !== null
-            && typeof subject.valueOf() === 'boolean'
-    );
-}
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/kebabCase.js
-function src_kebabCase_kebabCase(str) {
-    return str && str.replace ?
-        str.replace(/([a-z])([A-Z])/g, '$1-$2')
-            .replace(/\s+/g, '-')
-            .replace(/_/g, '-')
-            .toLowerCase() : null;
-};
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/prefix.js
-
-
-
-function src_prefix_prefix(subject, prefix, delimeter = '-') {
-    const prefixer = (value, key) => {
-        const string = (key || value).toString().replace(new RegExp(`^${prefix}${delimeter}?`), '');
-
-        return [prefix, string].filter(value => !!value).join(delimeter);
-    };
-
-    if(isBoolean_isBoolean(subject)) {
-        return subject;
-    }
-
-    if(isObject_isObject(subject)) {
-        return Object.fromEntries(
-            Object.entries(subject).map(([key, value]) => [prefixer(key), value])
-        );
-    }
-
-    return subject && prefixer(subject);
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/readFile.js
-
-
-function readFile(src, progress) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-            
-        if(isFunction_isFunction(progress)) {
-            reader.onprogress = e => {
-                if(e.lengthComputable) {
-                    progress(parseInt((e.loaded / e.total) * 100, 10));
-                }
-            };
-        }
-
-        reader.onload = resolve;            
-        reader.onerror = reject;
-        reader.onabort = reject;
-        reader.readAsDataURL(src);
-    });
-}
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/script.js
-const script_LOADED_SCRIPTS = {};
-
-function src_script_element(url) {
-    const script = document.createElement('script');
-    script.setAttribute('src', url);
-    script.setAttribute('type', 'text/javascript');
-    script.setAttribute('charset', 'utf-8');
-    return script;
-}
-
-function script_append(script) {
-    if(document.querySelector('head')) {
-        document.querySelector('head').appendChild(script);
-    }
-    else {
-        document.querySelector('body').appendChild(script);
-    }
-
-    return script;
-}
-
-function script_script(url) {
-    if(script_LOADED_SCRIPTS[url] instanceof Promise) {
-        return script_LOADED_SCRIPTS[url];
-    }
-    else if(script_LOADED_SCRIPTS[url] || document.querySelector(`script[src="${url}"]`)) {
-        return new Promise((resolve, reject) => {
-            resolve(script_LOADED_SCRIPTS[url]);
-        });
-    }
-
-    script_LOADED_SCRIPTS[url] = new Promise((resolve, reject) => {
-        try {
-            script_append(src_script_element(url)).addEventListener('load', event => {
-                resolve(script_LOADED_SCRIPTS[url] = event);
-            });
-        }
-        catch (e) {
-            reject(e);
-        }
-    });
-
-    return script_LOADED_SCRIPTS[url];
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/sequence.js
-function sequence_sequence(fns, ...args) {
-    const results = [];
-
-    const promise = fns.reduce((p, fn) => p.then(() => {
-        return Promise.resolve(fn(...args)).then(response => {
-            results.push(response);
-
-            return response;
-        });
-    }), Promise.resolve());
-
-    return promise.then(() => {
-        return results;
-    });
-};
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/transitionDuration.js
-function transitionDuration_transitionDuration(el, defaultValue = '0s') {
-    let duration = (
-        getComputedStyle(el).transitionDuration ||
-        getComputedStyle(el).animationDuration
-    );
-    
-    const numeric = parseFloat(duration, 10) || 0;
-    
-    const unit = duration.match(/m?s/);
-
-    switch (unit && unit[0]) {
-
-    case 's':
-        return numeric * 1000;
-    default:
-        return numeric;
-    }
-}
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/transition.js
-
-
-function transition_transition(el, defaultValue) {
-    if(!el) {
-        return Promise.resolve(null);
-    }
-
-    return new Promise(resolve => {
-        const delay = transitionDuration_transitionDuration(el, defaultValue);
-
-        setTimeout(() => resolve(delay), delay);        
-    });
-}
-
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/src/unit.js
-/* harmony default export */ var src_unit = (function(value, uom = 'px') {
-    return value !== null
-        && value !== undefined
-        && value !== false
-        && isFinite(value) ? `${value}${uom}` : value;
-});
-// CONCATENATED MODULE: ./node_modules/@vue-interface/navigation/node_modules/@vue-interface/utils/index.js
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/navigation/src/NavigationItems.vue?vue&type=script&lang=js&
 
@@ -5004,7 +4013,7 @@ var NavbarNav_component = normalizeComponent(
 )
 
 /* harmony default export */ var NavbarNav = (NavbarNav_component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/NavbarText.vue?vue&type=template&id=be68102a&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/NavbarText.vue?vue&type=template&id=be68102a&
 var NavbarTextvue_type_template_id_be68102a_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('span',{staticClass:"navbar-text"},[_vm._t("default")],2)}
 var NavbarTextvue_type_template_id_be68102a_staticRenderFns = []
 
@@ -5046,7 +4055,7 @@ var NavbarText_component = normalizeComponent(
 // EXTERNAL MODULE: ./node_modules/@vue-interface/btn-dropdown/src/css/BtnDropdown.css
 var BtnDropdown = __webpack_require__("ea01");
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdown.vue?vue&type=template&id=0a072a98&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdown.vue?vue&type=template&id=0a072a98&
 var BtnDropdownvue_type_template_id_0a072a98_render = function () {
 var this$1 = this;
 var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c(_vm.$attrs.split === undefined || !!_vm.$attrs.nav ? 'btn-dropdown-single' : 'btn-dropdown-split',_vm._b({tag:"component",staticClass:"btn-dropdown",on:{"click":function () {
@@ -5091,14 +4100,14 @@ var BtnDropdownvue_type_template_id_0a072a98_staticRenderFns = []
 
 // CONCATENATED MODULE: ./node_modules/@vue-interface/btn-dropdown/src/BtnDropdown.vue?vue&type=template&id=0a072a98&
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownSplit.vue?vue&type=template&id=1bcf77bc&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownSplit.vue?vue&type=template&id=1bcf77bc&
 var BtnDropdownSplitvue_type_template_id_1bcf77bc_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('btn-group',{staticClass:"btn-dropdown-split",class:_vm.classes,on:{"click":_vm.onClick}},[(!_vm.dropleft)?_c('btn-dropdown-action',{ref:"button",class:_vm.actionClasses,attrs:{"id":_vm.$attrs.id,"expanded":_vm.isDropdownShowing,"href":_vm.href,"to":_vm.to},nativeOn:{"click":function($event){return (function (e) { return _vm.$emit('click', e); })($event)}}},[_vm._t("icon"),_vm._t("label",[_vm._v(" "+_vm._s(_vm.label)+" ")])],2):_vm._e(),_c('btn-group',[(_vm.split)?_c('button',{ref:"split",class:_vm.toggleClasses,attrs:{"id":_vm.$attrs.id,"type":"button","aria-haspopup":"true","aria-expanded":_vm.isDropdownShowing},on:{"click":_vm.onClickToggle}}):_vm._e(),_c('dropdown-menu',{ref:"menu",class:{animated: _vm.triggerAnimation},attrs:{"id":_vm.$attrs.id,"align":_vm.align,"show":_vm.isDropdownShowing},on:{"click-item":_vm.onClickItem,"blur-item":_vm.onBlurItem}},[_vm._t("default")],2)],1),(_vm.dropleft)?_c('btn-dropdown-action',{ref:"button",class:_vm.actionClasses,attrs:{"id":_vm.$attrs.id,"expanded":_vm.isDropdownShowing,"href":_vm.href,"to":_vm.to},nativeOn:{"click":function($event){return (function (e) { return _vm.$emit('click', e); })($event)}}},[_vm._t("icon"),_vm._t("label",[_vm._v(" "+_vm._s(_vm.label)+" ")])],2):_vm._e()],1)}
 var BtnDropdownSplitvue_type_template_id_1bcf77bc_staticRenderFns = []
 
 
 // CONCATENATED MODULE: ./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownSplit.vue?vue&type=template&id=1bcf77bc&
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownAction.vue?vue&type=template&id=5a7b0daa&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownAction.vue?vue&type=template&id=5a7b0daa&
 var BtnDropdownActionvue_type_template_id_5a7b0daa_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c(_vm.is,_vm._b({tag:"component",attrs:{"id":_vm.id,"aria-haspopup":"true","aria-expanded":_vm.expanded,"type":_vm.is === 'button' ? 'button': undefined}},'component',_vm.to ? { to: _vm.to } : { href: _vm.href },false),[_vm._t("default")],2)}
 var BtnDropdownActionvue_type_template_id_5a7b0daa_staticRenderFns = []
 
@@ -5185,7 +4194,7 @@ function getBoundingClientRect(element) {
 function getWindow(node) {
   if (node.toString() !== '[object Window]') {
     var ownerDocument = node.ownerDocument;
-    return ownerDocument ? ownerDocument.defaultView : window;
+    return ownerDocument ? ownerDocument.defaultView || window : window;
   }
 
   return node;
@@ -5218,6 +4227,14 @@ function isHTMLElement(node) {
   var OwnElement = getWindow(node).HTMLElement;
   return node instanceof OwnElement || node instanceof HTMLElement;
 }
+/*:: declare function isShadowRoot(node: mixed): boolean %checks(node instanceof
+  ShadowRoot); */
+
+
+function isShadowRoot(node) {
+  var OwnElement = getWindow(node).ShadowRoot;
+  return node instanceof OwnElement || node instanceof ShadowRoot;
+}
 
 
 // CONCATENATED MODULE: ./node_modules/@popperjs/core/lib/dom-utils/getHTMLElementScroll.js
@@ -5247,7 +4264,7 @@ function getNodeName(element) {
 
 function getDocumentElement(element) {
   // $FlowFixMe: assume body is always available
-  return (isElement(element) ? element.ownerDocument : element.document).documentElement;
+  return ((isElement(element) ? element.ownerDocument : element.document) || window.document).documentElement;
 }
 // CONCATENATED MODULE: ./node_modules/@popperjs/core/lib/dom-utils/getWindowScrollBarX.js
 
@@ -5576,8 +4593,7 @@ function mergeByName(modifiers) {
     return merged[key];
   });
 }
-// CONCATENATED MODULE: ./node_modules/@popperjs/core/lib/index.js
-
+// CONCATENATED MODULE: ./node_modules/@popperjs/core/lib/createPopper.js
 
 
 
@@ -5791,7 +4807,7 @@ function popperGenerator(generatorOptions) {
     return instance;
   };
 }
-var lib_createPopper = /*#__PURE__*/popperGenerator(); // eslint-disable-next-line import/no-unused-modules
+var createPopper_createPopper = /*#__PURE__*/popperGenerator(); // eslint-disable-next-line import/no-unused-modules
 
 
 // CONCATENATED MODULE: ./node_modules/@popperjs/core/lib/modifiers/eventListeners.js
@@ -6317,14 +5333,14 @@ function getDocumentRect(element) {
   };
 }
 // CONCATENATED MODULE: ./node_modules/@popperjs/core/lib/dom-utils/contains.js
+
 function contains(parent, child) {
-  // $FlowFixMe: hasOwnProperty doesn't seem to work in tests
-  var isShadow = Boolean(child.getRootNode && child.getRootNode().host); // First, attempt with faster native method
+  var rootNode = child.getRootNode && child.getRootNode(); // First, attempt with faster native method
 
   if (parent.contains(child)) {
     return true;
   } // then fallback to custom implementation with Shadow DOM support
-  else if (isShadow) {
+  else if (rootNode && isShadowRoot(rootNode)) {
       var next = child;
 
       do {
@@ -7004,8 +6020,12 @@ var popper_createPopper = /*#__PURE__*/popperGenerator({
   defaultModifiers: popper_defaultModifiers
 }); // eslint-disable-next-line import/no-unused-modules
 
+ // eslint-disable-next-line import/no-unused-modules
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn/src/Btn.vue?vue&type=template&id=dfb20136&
+ // eslint-disable-next-line import/no-unused-modules
+
+
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn/src/Btn.vue?vue&type=template&id=dfb20136&
 var Btnvue_type_template_id_dfb20136_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return (_vm.to)?_c('router-link',{class:_vm.classes,attrs:{"to":_vm.to,"disabled":_vm.disabled,"role":"button"},on:{"click":_vm.onClick}},[_vm._t("default")],2):(_vm.href)?_c('a',{class:_vm.classes,attrs:{"href":_vm.href,"disabled":_vm.disabled,"role":"button"},on:{"click":_vm.onClick}},[_vm._t("default")],2):(_vm.label)?_c('label',{class:_vm.classes,attrs:{"disabled":_vm.disabled,"role":"button"},on:{"click":_vm.onClick}},[_vm._t("default")],2):_c('button',{class:_vm.classes,attrs:{"type":_vm.type,"disabled":_vm.disabled},on:{"click":_vm.onClick}},[_vm._t("default")],2)}
 var Btnvue_type_template_id_dfb20136_staticRenderFns = []
 
@@ -7199,7 +6219,7 @@ var Btn_component = normalizeComponent(
 // EXTERNAL MODULE: ./node_modules/@vue-interface/btn-group/src/css/ButtonGroup.css
 var ButtonGroup = __webpack_require__("a671");
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-group/src/BtnGroup.vue?vue&type=template&id=2b9066b6&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-group/src/BtnGroup.vue?vue&type=template&id=2b9066b6&
 var BtnGroupvue_type_template_id_2b9066b6_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{class:_vm.classes,attrs:{"data-toggle":_vm.toggle ? 'buttons' : false,"role":"group"}},[(_vm.buttons)?_vm._l((_vm.buttons),function(button,i){return _c('btn',_vm._b({key:i},'btn',button,false))}):_vm._e(),_vm._t("default")],2)}
 var BtnGroupvue_type_template_id_2b9066b6_staticRenderFns = []
 
@@ -7278,7 +6298,7 @@ var BtnGroup_component = normalizeComponent(
 )
 
 /* harmony default export */ var BtnGroup = (BtnGroup_component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-group/src/BtnGroupToggle.vue?vue&type=template&id=6e01a010&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-group/src/BtnGroupToggle.vue?vue&type=template&id=6e01a010&
 var BtnGroupTogglevue_type_template_id_6e01a010_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"btn-group-toggle",attrs:{"data-toggle":"buttons"}},[_vm._t("default")],2)}
 var BtnGroupTogglevue_type_template_id_6e01a010_staticRenderFns = []
 
@@ -7317,7 +6337,7 @@ var BtnGroupToggle_component = normalizeComponent(
 )
 
 /* harmony default export */ var BtnGroupToggle = (BtnGroupToggle_component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-group/src/BtnToolbar.vue?vue&type=template&id=2411d13c&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-group/src/BtnToolbar.vue?vue&type=template&id=2411d13c&
 var BtnToolbarvue_type_template_id_2411d13c_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"btn-toolbar",attrs:{"role":"toolbar"}},[_vm._t("default")],2)}
 var BtnToolbarvue_type_template_id_2411d13c_staticRenderFns = []
 
@@ -7364,7 +6384,7 @@ var BtnToolbar_component = normalizeComponent(
 
 
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/dropdown-menu/src/DropdownMenu.vue?vue&type=template&id=b6106506&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/dropdown-menu/src/DropdownMenu.vue?vue&type=template&id=b6106506&
 var DropdownMenuvue_type_template_id_b6106506_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"dropdown-menu",class:{'dropdown-menu-left': _vm.align === 'left', 'dropdown-menu-right': _vm.align === 'right', 'show': _vm.show},attrs:{"aria-labelledby":_vm.$attrs.id}},[_c('dropdown-menu-items',[_vm._t("default")],2)],1)}
 var DropdownMenuvue_type_template_id_b6106506_staticRenderFns = []
 
@@ -8040,7 +7060,7 @@ var BtnDropdownSplit_component = normalizeComponent(
 )
 
 /* harmony default export */ var BtnDropdownSplit = (BtnDropdownSplit_component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"129fb260-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownSingle.vue?vue&type=template&id=bbafb680&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"7f7a6477-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./node_modules/@vue-interface/btn-dropdown/src/BtnDropdownSingle.vue?vue&type=template&id=bbafb680&
 var BtnDropdownSinglevue_type_template_id_bbafb680_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('btn-group',{class:_vm.classes},[_c('btn-dropdown-action',{ref:"button",class:_vm.toggleClasses,style:(_vm.toggleStyle),attrs:{"id":_vm.$attrs.id,"expanded":_vm.isDropdownShowing,"href":_vm.href,"to":_vm.to},nativeOn:{"click":function($event){return _vm.onClickToggle($event)}}},[_vm._t("icon"),_vm._t("label",[_vm._v(" "+_vm._s(_vm.label)+" ")])],2),_c('dropdown-menu',{ref:"menu",class:{animated: _vm.triggerAnimation},attrs:{"id":_vm.$attrs.id,"align":_vm.align,"show":_vm.isDropdownShowing},on:{"click-item":_vm.onClickItem,"blur-item":_vm.onBlurItem}},[_vm._t("default")],2)],1)}
 var BtnDropdownSinglevue_type_template_id_bbafb680_staticRenderFns = []
 
